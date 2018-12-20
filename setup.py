@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='PrefectDecorator',
-    version='0.0.1',
+    version='0.0.2',
     description='Some convenient decorators.',
     author='RankoHata',
     author_email='san332627946@gmail.com',
