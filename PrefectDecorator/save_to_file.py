@@ -1,4 +1,4 @@
-"""将数据保存至文件的装饰器"""
+"""A decorator that save the data to file."""
 
 import os
 from functools import wraps
@@ -6,17 +6,29 @@ from collections.abc import Iterable
 
 
 def save_to_file(filepath, save=True, override=False, filetype='text', encoding='utf-8', end='\n', process_func=None):
-    """A decorator that save the data to file."""
+    """A decorator that save the data to file.
+    
+    Note:
+        The arguments of the wrapped function can dynamically affect the function of the decorator.
+        The arguments of the wrapped function have a higher priority.
+
+    Args:
+        filepath: The absolute path of the target file where the data is saved.
+        save: A flag to save data.
+        override: A flag to overwrite data in the target file.
+        filetype: Type of target file.
+        encoding: The encoding type of the data.
+        end: The separator between each item if the data is iterable and the target file type is text.
+        process_func: The handler used in the iteration.
+    """
     def decorate(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # 被包装函数能够通过参数save,override控制装饰器,优先级高于装饰器参数
-            # 实际上意思就是可以通过函数参数这个方式,显式地让装饰器功能改变
-            # 必须使用 nonlocal 关键字,否则会抛出错误
-            # UnboundLocalError: local variable XXXX referenced before assignment
-            # Reason: try块的赋值语句,使save,override被认定为是局部变量
-            nonlocal save
-            nonlocal override
+            # Must use 'nonlocal' keyword, otherwise the following error will be thrown.
+            # UnboundLocalError: local variable 'xxx' referenced before assignment
+            # Because of the internal implementation of Python, 
+            # the assignment statement in the 'try' block makes 'xxx' be considered a local variable.
+            nonlocal save, override
             try:
                 save = kwargs.pop('save')
             except KeyError:
@@ -26,15 +38,16 @@ def save_to_file(filepath, save=True, override=False, filetype='text', encoding=
             except KeyError:
                 pass
 
-            result = func(*args, **kwargs)  # 执行内部函数
+            result = func(*args, **kwargs)  # Running internal function.
             
-            if save:  # 保存标志位
+            if save:
                 exist_flag = os.path.isfile(filepath)
-                if exist_flag and not override:  # 存在但是不覆盖
-                    return result  # 直接返回结果
-                elif exist_flag:  # 如果文件存在且要覆盖
-                    os.remove(filepath)  # 删除文件
-                # 保存至文件
+                if exist_flag and not override:  # The data in the files is not overwirtten and the file exists.
+                    return result
+                elif exist_flag:  # Overwrite the data in the file and the file exists.
+                    os.remove(filepath)  # Delete existing file.
+
+                # Save to file.
                 if filetype == 'text':
                     if isinstance(result, str):
                         with open(filepath, 'wt', encoding=encoding) as f:
@@ -45,12 +58,13 @@ def save_to_file(filepath, save=True, override=False, filetype='text', encoding=
                         with open(filepath, 'at', encoding=encoding) as f:
                             for word in result:
                                 if process_func is not None:
-                                    word = process_func(word)  # 对每次迭代的数据进行处理
+                                    word = process_func(word)
                                 f.write(str(word) + end)
-                else:  # 其他类型暂未设置
-                    pass
+                else:  # Other types are not considered.
+                    raise TypeError('Data type are not supported: {}.'.format(type(result)))
             else:
                 pass
+
             return result
         return wrapper
     return decorate
