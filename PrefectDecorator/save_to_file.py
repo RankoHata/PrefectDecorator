@@ -1,11 +1,12 @@
 """A decorator that save the data to file."""
 
 import os
+import csv
 from functools import wraps
 from collections.abc import Iterable
 
 
-def save_to_file(filepath, save=True, override=False, filetype='text', encoding='utf-8', end='\n', process_func=None):
+def save_to_file(filepath, save=True, override=False, filetype='text', encoding='utf-8', end='\n', headers=None, process_func=None):
     """A decorator that save the data to file.
     
     Note:
@@ -19,6 +20,7 @@ def save_to_file(filepath, save=True, override=False, filetype='text', encoding=
         filetype: Type of target file.
         encoding: The encoding type of the data.
         end: The separator between each item if the data is iterable and the target file type is text.
+        headers: This argument is valid only when saved as a csv file.
         process_func: The handler used in the iteration.
     """
     def decorate(func):
@@ -28,7 +30,8 @@ def save_to_file(filepath, save=True, override=False, filetype='text', encoding=
             # UnboundLocalError: local variable 'xxx' referenced before assignment
             # Because of the internal implementation of Python, 
             # the assignment statement in the 'try' block makes 'xxx' be considered a local variable.
-            nonlocal save, override
+            # Arugment: headers also have same problem.
+            nonlocal save, override, headers
             try:
                 save = kwargs.pop('save')
             except KeyError:
@@ -60,6 +63,17 @@ def save_to_file(filepath, save=True, override=False, filetype='text', encoding=
                                 if process_func is not None:
                                     word = process_func(word)
                                 f.write(str(word) + end)
+                    else:
+                        raise TypeError('Data type are not supported: {}.'.format(type(result)))
+                elif filetype == 'csv':
+                    if isinstance(result, list) or isinstance(result, tuple):
+                        with open(filepath, 'wt', encoding=encoding, newline='') as f:  # Avoid extra blank lines
+                            f_csv = csv.writer(f)
+                            if headers is None:
+                                headers = ['-'] * len(result[0])  # Number of data items in the first line.
+                                pass
+                            f_csv.writerow(headers)
+                            f_csv.writerows(result)
                 else:  # Other types are not considered.
                     raise TypeError('Data type are not supported: {}.'.format(type(result)))
             else:
